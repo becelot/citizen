@@ -12,11 +12,69 @@ const providers = require('./routes/providers');
 const moduleList = require('./routes/list');
 const modules = require('./routes/modules');
 const moduleDownload = require('./routes/download');
+const auth = require('./routes/auth');
+const { findOneAuth } = require('./stores/store');
 
 const app = express();
 
 app.use(helmet());
 app.use(cors());
+
+const superPassword = process.env.CITIZEN_SUPER_PASSWORD || undefined;
+const useAuthorization = process.env.CITIZEN_USE_AUTH || false;
+
+if (useAuthorization) {
+  app.use(async (req, res, next) => {
+    const { authorization } = req.headers;
+
+    if (!authorization || !authorization.startsWith('Bearer ')) {
+      res.statusCode = 401;
+      res.send({ message: 'No authentication token provided' });
+    }
+
+    const tokenString = authorization.replace('Bearer ', '');
+    const token = await findOneAuth({ token: tokenString });
+
+    // auth endpoints only for administrators
+    if (req.path.startsWith('/auth')) {
+      if (tokenString === superPassword || (token && token.isAdmin)) {
+        return next();
+      }
+
+      logger.warn('Request denied - not an admin user');
+      res.statusCode = 401;
+      return res.send({ message: 'Unauthorized' });
+    }
+
+    if (!token) {
+      res.statusCode = 401;
+      return res.send({ message: 'Unauthorized' });
+    }
+
+    // authorize standard requests
+    if (req.path.startsWith('/v1')) {
+      let permissions;
+      if (req.method === 'POST') {
+        permissions = token.permissions.write;
+      } else {
+        permissions = token.permissions.read;
+      }
+
+      if (!permissions || permissions.length === 0) {
+        res.statusCode = 401;
+        return res.send({ message: 'Unauthorized' });
+      }
+
+      const reqPath = req.path.substring(4);
+      if (!permissions.find((p) => reqPath.match(new RegExp(p.replace('*', '.*'))))) {
+        res.statusCode = 401;
+        return res.send({ message: 'Unauthorized' });
+      }
+    }
+
+    return next();
+  });
+}
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -29,6 +87,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 app.use('/', index);
 app.use('/', serviceDiscovery);
+app.use('/auth', auth);
 
 app.use('/v1/providers', providers);
 

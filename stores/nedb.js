@@ -154,6 +154,31 @@ const findProviderPackage = (options) => new Promise((resolve, reject) => {
   });
 });
 
+// auth tokens
+const authDbPath = join(dbDir, 'citizen-auth.db');
+const authDb = new Datastore({ filename: authDbPath, autoload: true });
+
+const saveAuth = (data) => new Promise((resolve, reject) => {
+  const p = Object.assign(data, { _id: `${uuid()}`, published_at: new Date() });
+  if (!p.protocols) { p.protocols = []; }
+
+  authDb.insert(p, (err, newDoc) => {
+    if (err) { return reject(err); }
+    debug('saved the auth into db: %o', data);
+    return resolve(newDoc);
+  });
+});
+
+const findOneAuth = (options) => new Promise((resolve, reject) => {
+  debug('search a auth in store with %o', options);
+  authDb.find(options, (err, docs) => {
+    if (err) { return reject(err); }
+
+    debug('search a auth result from store: %o', docs);
+    return resolve(docs.length > 0 ? docs[0] : null);
+  });
+});
+
 module.exports = {
   storeType,
   moduleDb,
@@ -171,4 +196,7 @@ module.exports = {
   findAllProviders,
   getProviderVersions,
   findProviderPackage,
+  authDb,
+  saveAuth,
+  findOneAuth,
 };

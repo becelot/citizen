@@ -114,6 +114,27 @@ const findProviderPackage = (options) => Provider
   .find(options, null, { sort: '-version' })
   .then((docs) => (docs.length > 0 ? docs[0] : null));
 
+// auth
+const Auth = mongoose.model('Auth', {
+  token: { type: String, unique: true, index: true },
+  permissions: {
+    read: { type: Array, default: [] },
+    write: { type: Array, default: [] },
+  },
+  isAdmin: { type: Boolean, default: false },
+  description: String,
+});
+
+const saveAuth = (data) => {
+  const auth = new Auth(data);
+  return auth.save();
+};
+
+const findOneAuth = async (options) => {
+  debug('search a provider in store with %o', options);
+  return Auth.findOne(options).lean().exec();
+};
+
 module.exports = {
   storeType,
   moduleDb: Module,
@@ -131,4 +152,7 @@ module.exports = {
   findAllProviders,
   getProviderVersions,
   findProviderPackage,
+  authDb: Auth,
+  saveAuth,
+  findOneAuth,
 };

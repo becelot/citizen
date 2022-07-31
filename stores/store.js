@@ -310,6 +310,41 @@ const findProviderPackage = async ({
   return result;
 };
 
+// auth
+const authDb = () => store.authDb;
+
+const saveAuth = async ({
+  token = '',
+  isAdmin = false,
+  permissions = {},
+} = {}) => {
+  if (!token) { throw new Error('Token required'); }
+
+  const a = {
+    token,
+  };
+
+  const result = await store.saveAuth({
+    token,
+    isAdmin: isAdmin || false,
+    permissions: permissions || {}
+  });
+  return result;
+};
+
+const findOneAuth = async ({
+  token = '',
+} = {}) => {
+  if (!token) { throw new Error('Token required.'); }
+
+  const options = {
+    token,
+  };
+
+  const result = await store.findOneAuth(options);
+  return result;
+};
+
 (async () => {
   await init();
 })();
@@ -330,4 +365,7 @@ module.exports = {
   findAllProviders,
   getProviderVersions,
   findProviderPackage,
+  authDb,
+  saveAuth,
+  findOneAuth,
 };
